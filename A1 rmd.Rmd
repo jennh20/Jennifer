@@ -1,0 +1,361 @@
+---
+title: "APM466 A1"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
+```{r, echo=TRUE}
+Bonds <- read.csv('/Users/jenniferhe/Desktop/APM466/A1/Selected\ Bonds.csv', header = FALSE)
+
+
+#Create a list with the Maturity Date for the selected bonds
+Maturity <- as.Date(Bonds[-1,6], "%Y-%m-%d")
+
+#Create a list with the Valuation Date
+Val <- rep(Sys.Date(),10)
+for (i in c(1:10)) {
+  Val[i] <- as.Date(Bonds[1, i+7], "%Y-%m-%d")
+}
+
+#Create a data frame with the dates between maturity and valuation date
+a <- rep(1, 11)
+Days <-data.frame(a,a,a,a,a,a,a,a,a,a)
+for (i in c(1:10)) {
+  for (j in c(1:11)) {
+    Days[j,i] = Maturity[j] - Val[i]
+  }
+}
+
+#Create a vector for each bond's coupons
+#Coupons rate are listed annually, here we want the semi-annual coupon payment
+cpr <- as.numeric(as.vector(Bonds[-1, 2]))
+cp <- cpr/2*100
+
+#Create a matrix on bonds' clean price and dirty price which has same format as Days
+price <-data.frame(a,a,a,a,a,a,a,a,a,a)
+dprice <- data.frame(a,a,a,a,a,a,a,a,a,a)
+for (i in c(1:10)) {
+  for (j in c(1:11)) {
+    price[j, i] = as.numeric(as.vector(Bonds[j+1, i+7]))
+    #find the days since the last payment, the last element in the sequence is the days since the last payment
+    daycp = seq(from = Days[j,i], to = -183, by = -183)
+    #dirty price = clean price + accured interest
+    #accured interest = # of days since last coupon/365 * coupon payment
+    dprice [j,i] = price[j, i] + (-daycp[length(daycp)])/365*cpr[j]*100
+  }
+}
+
+
+#a. Find YTM (as a effective annual interest rate)
+
+bdval <- function (i, cf, t = timeinyr)
+  sum(cf/(1+i)^t)
+ytm <- function(cf) {
+  uniroot(bdval, c(0, 1), cf = cf)$root
+}
+
+yield <-data.frame(a,a,a,a,a,a,a,a,a,a)
+
+for (i in c(1:10)){
+  for (j in c(1:11)) {
+    timeindays <- seq.int(from = Days[j, i], to = 0, by = -183)
+    timeindays <- c(0, timeindays)
+    timeinyr <- timeindays/365
+    cf <- rep (cp[j], length(timeindays)-2)
+    cf <- c(-dprice[j, i],cp[j]+100, cf)
+    yield[j,i] <- ytm(cf)
+  }
+}
+
+
+library(lubridate)
+b <- rep(1, 10)
+semiyield <- data.frame(b,b,b,b,b,b,b,b,b,b)
+semiyield_n <- data.frame(b,b,b,b,b,b,b,b,b,b)
+
+for (i in 1:10) {
+  t <- rep(Sys.Date(), 10)
+  for (h in 1:10) {
+    t[h] <- Val[i]+months(6)*h
+  }
+  #use interpolation to find the ytm at the desire date
+  #since we have two bonds that have maturity date less than 6 months with each other, we perform interpolation one by one
+  
+  #half year yield rate
+  x <- c(Maturity[1], Maturity[2])
+  y <- c(yield[1, i], yield[2, i])
+  semiyield[1, i] <- approx(x, y, xout = t[1], method = "linear")$y
+  
+  #1 year yield rate
+  x <- c(Maturity[2], Maturity[3])
+  y <- c(yield[2, i], yield[3, i])
+  semiyield[2, i] <- approx(x, y, xout = t[2], method = "linear")$y
+  
+  #1.5 year yield rate
+  x <- c(Maturity[3], Maturity[4])
+  y <- c(yield[3, i], yield[4, i])
+  semiyield[3, i] <- approx(x, y, xout = t[3], method = "linear")$y
+  
+  #2 year yield rate
+  x <- c(Maturity[4], Maturity[5])
+  y <- c(yield[4, i], yield[5, i])
+  semiyield[4, i] <- approx(x, y, xout = t[4], method = "linear")$y
+  
+  #2.5 year yield rate
+  x <- c(Maturity[6], Maturity[7])
+  y <- c(yield[6, i], yield[7, i])
+  semiyield[5, i] <- approx(x, y, xout = t[5], method = "linear")$y
+  
+  #3 year yield rate
+  x <- c(Maturity[6], Maturity[7])
+  y <- c(yield[6, i], yield[7, i])
+  semiyield[6, i] <- approx(x, y, xout = t[6], method = "linear")$y
+  
+    
+  #3 year yield rate
+  x <- c(Maturity[8], Maturity[9])
+  y <- c(yield[8, i], yield[9, i])
+  semiyield[7, i] <- approx(x, y, xout = t[7], method = "linear")$y
+  
+    
+  #3 year yield rate
+  x <- c(Maturity[8], Maturity[9])
+  y <- c(yield[8, i], yield[9, i])
+  semiyield[8, i] <- approx(x, y, xout = t[8], method = "linear")$y
+  
+  #3 year yield rate
+  x <- c(Maturity[9], Maturity[10])
+  y <- c(yield[9, i], yield[10, i])
+  semiyield[9, i] <- approx(x, y, xout = t[9], method = "linear")$y
+  
+  #3 year yield rate
+  x <- c(Maturity[10], Maturity[11])
+  y <- c(yield[10, i], yield[11, i])
+  semiyield[10, i] <- approx(x, y, xout = t[10], method = "linear")$y
+  
+  #note that semiyield is expressed as an annual effective rate
+  #convert it to semi-annual nominal yield rate
+  semiyield_n[,i] <- ((semiyield[,i]+1)^(1/2) - 1)*2
+  
+  if (i == 1){
+    par()
+    plot(t, semiyield_n[,1], type = "l", main="Yield Curve", xlab="Maturity Date", ylab="Semi Annual Yield To Maturity", col=1, ylim=c(0.015,0.03))
+  } else{
+    lines(t, semiyield[,i], type = "l", col=i)
+  }
+  legend("topright",legend=Val, col=c(1:10), lty=1, cex=0.75, fill=1:10, ncol=2)
+}
+
+```
+
+
+```{r, b, echo=TRUE}
+#create a dataframe placeholder for spot rate
+spot <- data.frame(a,a,a,a,a,a,a,a,a,a)
+
+#use Bootstrapping method and find the annual effective spot rate 
+for (i in c(1:10)) {
+  
+  #calculate the spot rate for the first bond (i.e. 3 month spot rate)
+  timeindays <- seq.int(from = Days[1,i], to=0, by=-183)
+  timeinyr <- timeindays/365
+  cf <- cp[1]+100
+  spot[1,i] <- (cf[1]/dprice[1,i])^(1/timeinyr[1]) -1
+
+  #calculate the spot rate for the remaining bonds
+  for (j in c(2:11)) {
+    timeindays <- seq.int(from = Days[j, i], to = 0, by = -183)
+    timeinyr <- timeindays/365
+    cf <- rep(cp[j], length(timeindays)-1)
+    cf <- c(cp[j]+100, cf)
+    
+    #find the unknown value of the bond by subtracting the know portion from the dirty price
+    #let n be the total number of payments, since the coupons are listed in cf in reverse order, the last element is paid first
+    n <- length(timeinyr)
+    remain <- dprice [j,i]
+    
+    #do a for loop over the kth element of time and cashflow
+    #each iteration will subtract the current value of the bond by the discounted value of the kth coupon payment
+    for (k in n:2) {
+      remain <- remain - cf[k]/((1+spot[n+1-k,i])^(timeinyr[k]))
+    }
+    spot[j,i] <- (cf[1]/remain)^(1/timeinyr[1]) -1 
+  }
+}
+
+#note that spot is the spot rate between each maturity date and valuation date
+
+
+#next find annual effective spot rate that are exactly half-year, one-year, one-and-a-half-year... from each valuation date using interpolation
+
+
+library(lubridate)
+b <- rep(1, 10)
+semispot <- data.frame(b,b,b,b,b,b,b,b,b,b)
+semispot_n <- data.frame(b,b,b,b,b,b,b,b,b,b)
+
+for (i in 1:10) {
+  t <- rep(Sys.Date(), 10)
+  for (h in 1:10) {
+    t[h] <- Val[i]+months(6)*h
+  }
+  #use interpolation to find the spot rate at the desire time
+  #since we have two bonds that have maturity date less than 6 months with each other, we perform interpolation one by one
+  
+  #half year spot rate
+  x <- c(Maturity[1], Maturity[2])
+  y <- c(spot[1, i], spot[2, i])
+  semispot[1, i] <- approx(x, y, xout = t[1], method = "linear")$y
+  
+  #1 year spot rate
+  x <- c(Maturity[2], Maturity[3])
+  y <- c(spot[2, i], spot[3, i])
+  semispot[2, i] <- approx(x, y, xout = t[2], method = "linear")$y
+  
+  #1.5 year spot rate
+  x <- c(Maturity[3], Maturity[4])
+  y <- c(spot[3, i], spot[4, i])
+  semispot[3, i] <- approx(x, y, xout = t[3], method = "linear")$y
+  
+  #2 year spot rate
+  x <- c(Maturity[4], Maturity[5])
+  y <- c(spot[4, i], spot[5, i])
+  semispot[4, i] <- approx(x, y, xout = t[4], method = "linear")$y
+  
+  #2.5 year spot rate
+  x <- c(Maturity[6], Maturity[7])
+  y <- c(spot[6, i], spot[7, i])
+  semispot[5, i] <- approx(x, y, xout = t[5], method = "linear")$y
+  
+  #3 year spot rate
+  x <- c(Maturity[6], Maturity[7])
+  y <- c(spot[6, i], spot[7, i])
+  semispot[6, i] <- approx(x, y, xout = t[6], method = "linear")$y
+  
+    
+  #3 year spot rate
+  x <- c(Maturity[8], Maturity[9])
+  y <- c(spot[8, i], spot[9, i])
+  semispot[7, i] <- approx(x, y, xout = t[7], method = "linear")$y
+  
+    
+  #3 year spot rate
+  x <- c(Maturity[8], Maturity[9])
+  y <- c(spot[8, i], spot[9, i])
+  semispot[8, i] <- approx(x, y, xout = t[8], method = "linear")$y
+  
+  #3 year spot rate
+  x <- c(Maturity[9], Maturity[10])
+  y <- c(spot[9, i], spot[10, i])
+  semispot[9, i] <- approx(x, y, xout = t[9], method = "linear")$y
+  
+  #3 year spot rate
+  x <- c(Maturity[10], Maturity[11])
+  y <- c(spot[10, i], spot[11, i])
+  semispot[10, i] <- approx(x, y, xout = t[10], method = "linear")$y
+  
+  #note that semispot is expressed as an annual effective rate
+  #convert it to semi-annual nominal rate
+  semispot_n[,i] <- ((semispot[,i]+1)^(1/2) - 1)*2
+  
+  if (i == 1){
+    plot(t, semispot_n[,1], type = "l", main="Spot Curve", xlab="Maturity Date", ylab="Semi Annual Spot Rate", col=1, ylim = c(0.015, 0.03))
+  } else{
+    lines(t, semispot[,i], type = "l", col=i)
+  }
+  legend("topright",legend=Val, col=c(1:10), lty=1, cex=0.75, fill=1:10, ncol=2)
+}
+
+
+```
+
+
+```{r, echo=TRUE}
+
+#the 1 yr to 5 yr spot rates are the 2nd, 4th...10th element of semispot
+
+#create a dataframe placeholder for forward rate
+c = rep(1, 4)
+forward = data.frame(c,c,c,c,c,c,c,c,c,c)
+
+#find the annual forward rate
+for (i in 1:10) {
+  t <- rep(Sys.Date(), 4)
+  for (j in 2:5) {
+    t[j-1] <- Val[i]+months(12)*(j-1)
+    forward[j-1,i] <- ((1+semispot[2*j,i])^(j)) / ((1+semispot[2*(j-1), i])^(j-1)) -1
+  }
+  
+  if (i ==1) {
+    par()
+    plot(t, forward[,1], type = "l", main="Forward Curve", xlab="Maturity Date", ylab="Forward Rate", col=1, ylim=c(0.005, 0.02))
+  } else {
+    lines(t, forward[,i], type = "l", col = i)
+  }
+  legend("bottomright",legend=Val, col=c(1:10), lty=1, cex=0.75, fill=1:10, ncol=2)
+}
+
+```
+
+
+```{r, echo=TRUE}
+
+d <- rep(1,9)
+Xyield <- data.frame(d,d,d,d,d)
+Xforward <- data.frame(d,d,d,d)
+
+for (i in 1:5){
+  for (j in 1:9){
+    Xyield[j,i] = log(semiyield[i*2,j+1]/semiyield[i*2,j])
+  }
+}
+
+for (i in 1:4){
+  for (j in 1:9) {
+    Xforward[j,i] = log(forward[i,j+1]/forward[i,j])
+  }
+}
+covyield <- cov(Xyield)*10000
+covforward <- cov(Xforward)*1000
+covyield
+covforward
+
+```
+```{r, echo=TRUE}
+evyield <- eigen(covyield)
+evalueyield <- evyield$values
+evectoryield <- evyield$vectors
+round(evalueyield,4)
+round(evectoryield,4)
+
+evforward <- eigen(covforward)
+evalueforward <- evforward$values
+evectorforward <- evforward$vectors
+round(evalueforward,4)
+round(evectorforward,4)
+
+```
+
+
